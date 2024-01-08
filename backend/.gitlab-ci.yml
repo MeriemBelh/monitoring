@@ -1,0 +1,28 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - package
+
+maven-build:
+  image: maven:3.8.4-openjdk-17-slim
+  stage: build
+  script: 
+    - cd backend/
+    - mvn package -B
+  artifacts:
+    paths:
+      - backend/target/*.jar
+
+docker-build:
+  stage: package
+  before_script:
+    - docker login -u noranorab -p $DOCKER_HUB_PASSWORD
+  script:
+    - cd backend/
+    - docker build -t noranorab/backend:1.0.1 .
+    - docker push noranorab/backend:1.0.1
+
+

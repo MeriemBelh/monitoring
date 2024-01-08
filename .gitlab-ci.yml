@@ -1,0 +1,9 @@
+stages:
+  - build
+  - package
+  - deploy-dev
+  - deploy-prod
+
+include:
+  - local: 'frontend/.gitlab-ci.yml'
+  

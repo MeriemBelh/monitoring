@@ -1,0 +1,66 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - package
+  - deploy-dev
+  - deploy-prod
+
+node-build:
+  image: node:18-alpine
+  stage: build
+  script: 
+    - cd frontend/
+    - npm install 
+    - npm run build
+
+docker-build:
+  stage: package 
+  before_script:
+    - cd frontend/
+    - docker login -u noranorab -p $DOCKER_HUB_PASSWORD
+    - cd ..
+  script:
+    - cd frontend/
+    - docker build -t noranorab/frontend .
+    - docker push noranorab/frontend
+
+deploy-dev:
+  stage: deploy-dev
+  image: alpine:3.8
+  before_script:
+    - echo "Output from build stage"
+    - apk add --no-cache git curl bash coreutils
+    - git remote set-url origin https://$USERNAME:$TOKEN@gitlab.com/noranorab/devops_project.git
+    - git config --global user.email "noranorab7@gmail.com"
+    - git config --global user.name "noranorab"
+  script:
+    - git checkout -B main
+    - git status  # Check for changes
+    - if [ -n "$(git status --porcelain)" ]; then git commit -am '[skip ci] DEV manifest-image update'; git pull origin main; git push origin main; else echo "No changes to commit."; fi
+  dependencies:
+    - docker-build
+  only:
+    - main
+
+deploy-prod:
+  stage: deploy-prod
+  image: alpine:3.8
+  before_script:
+    - echo "Output from build stage"
+    - apk add --no-cache git curl bash coreutils
+    - git remote set-url origin https://$USERNAME:$TOKEN@gitlab.com/noranorab/devops_project.git
+    - git config --global user.email "noranorab7@gmail.com"
+    - git config --global user.name "noranorab"
+  script:
+    - git checkout -B main
+    - git pull origin main
+    - git status  # Check for changes
+    - if [ -n "$(git status --porcelain)" ]; then git commit -am '[skip ci] PROD manifest-image update'; git push origin main; else echo "No changes to commit."; fi
+  dependencies:
+    - docker-build
+  only:
+    - main
+  when: manual
